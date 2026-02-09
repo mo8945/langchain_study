@@ -1,0 +1,35 @@
+# from callfunction import ChatOpenAI, ChatPromptTemplate, StrOutputParser, dotenv
+# 모듈내에 들어가 있는 모든요소 (클래스, 함수,,,)
+from callfunction import *
+ 
+# 다른 모듈
+from langchain_core.prompts import MessagesPlaceholder # 여러 메세지를 한꺼번에 삽입하는 역할
+# 추가
+from langchain.memory import ConversationBufferMemory
+
+llm = ChatOpenAI(model="gpt-4o-mini")
+
+# 메모리 전체 기억
+memory = ConversationBufferMemory(return_messages=True) # 이전 대화를 메세지 형태로 변환
+
+# 프롬프트 설계(매개변수명은 변경불가)
+prompt = ChatPromptTemplate.from_messages([
+    ("system","당신은 여행 전문가 입니다. 사용자의 질문에 친절하게 답변해주세요."),
+    MessagesPlaceholder(variable_name="history"), # chat_history라는 변수에 들어있는 다양한 메세지리스트들을 위치에 넣어줌
+    ("human","{input}") # user 대신에 human도 가능
+])
+
+chain = prompt | llm
+
+inputs=["부산 여행지 1곳 추천해줘", "그럼 그 근처 맛집은 어디야", "숙박시설도 추천해줘", "아까 추천한 여행지가 어디라고 했지?"]
+
+for user_input in inputs:
+    # 메모리에 저장된 값을 꺼내와라(매개변수값(딕셔너리객체)) -> 입력받은 값이 없다는 표시 ex) {"input":"안녕하세요"}
+    # 반환받을때 딕셔너리의 키중 하나가 "history"키값으로 저장된 값을 꺼내와라=> ex) 물품보관소(키값)
+    history = memory.load_memory_variables({})["history"]
+    result = chain.invoke({"history":history, "input":user_input})#새롭게 입력을 받을때마다 전의 저장된 데이터 같이 전달
+    # 결과출력
+    print(f"\n사용자:{user_input}\n 응답:{result.content}")
+    # 메모리에 저장(현재 입력값과 모델 응답값을 계속해서 요청할때마다 누적해서 저장)
+    memory.save_context({"input":user_input},{"output":result.content})# 출력문자열만 저장
+
